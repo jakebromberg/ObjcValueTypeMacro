@@ -9,14 +9,14 @@ import XCTest
 import ConfigurationMacros
 
 let testMacros: [String: Macro.Type] = [
-    "stringify": StringifyMacro.self,
+  "stringify": StringifyMacro.self,
 ]
 #endif
 
 final class ConfigurationTests: XCTestCase {
-    func testMacro() throws {
-        #if canImport(ConfigurationMacros)
-        assertMacroExpansion(
+  func testMacro() throws {
+#if canImport(ConfigurationMacros)
+    assertMacroExpansion(
             """
             #stringify(a + b)
             """,
@@ -24,15 +24,15 @@ final class ConfigurationTests: XCTestCase {
             (a + b, "a + b")
             """,
             macros: testMacros
-        )
-        #else
-        throw XCTSkip("macros are only supported when running tests for the host platform")
-        #endif
-    }
-
-    func testMacroWithStringLiteral() throws {
-        #if canImport(ConfigurationMacros)
-        assertMacroExpansion(
+    )
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
+  
+  func testMacroWithStringLiteral() throws {
+#if canImport(ConfigurationMacros)
+    assertMacroExpansion(
             #"""
             #stringify("Hello, \(name)")
             """#,
@@ -40,9 +40,9 @@ final class ConfigurationTests: XCTestCase {
             ("Hello, \(name)", #""Hello, \(name)""#)
             """#,
             macros: testMacros
-        )
-        #else
-        throw XCTSkip("macros are only supported when running tests for the host platform")
-        #endif
-    }
+    )
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
 }

@@ -1,8 +1,25 @@
+import Foundation
 import Configuration
+import ConfigurationMacros
 
-let a = 17
-let b = 25
+@objc @Configuration protocol FooConfigurationProtocol: NSObjectProtocol {
+  var bar: Int { get }
+  var baz: String { get }
+  var qux: Bool { get }
+}
 
-let (result, code) = #stringify(a + b)
+let config = FooConfiguration(bar: 42, baz: "hello", qux: true)
+print(config.bar)
+print(config.baz)
+print(config.qux)
 
-print("The value \(result) was produced by the code \"\(code)\"")
+let mutableConfig: FooMutableConfiguration = config.mutableCopy()
+mutableConfig.bar = 123
+mutableConfig.baz = "world"
+mutableConfig.qux = false
+
+func printConfig(_ config: FooConfigurationProtocol) {
+  print("Config via protocol: bar=\(config.bar), baz=\(config.baz), qux=\(config.qux)")
+}
+printConfig(config)
+printConfig(mutableConfig)
