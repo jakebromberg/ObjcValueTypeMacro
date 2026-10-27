@@ -36,5 +36,13 @@ let package = Package(
             dependencies: ["ValueMacros"]
         ),
         .executableTarget(name: "Examples", dependencies: ["ObjcValue"]),
+        .testTarget(
+            name: "ObjcValueTests",
+            dependencies: [
+                "ValueMacros",
+                .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
+            ]
+        ),
+        .testTarget(name: "ObjcValueRuntimeTests", dependencies: ["ObjcValue"]),
     ]
 )
