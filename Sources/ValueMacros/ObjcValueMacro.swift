@@ -1,4 +1,3 @@
-import SwiftDiagnostics
 import SwiftSyntax
 import SwiftSyntaxMacros
 
@@ -18,6 +17,19 @@ public struct ObjcValueMacro {
         let type: String
         let isSettable: Bool
     }
+
+    /// What differs between the two generated classes.
+    enum Variant: CaseIterable {
+        case immutable, mutable
+
+        var prefix: String { self == .immutable ? "Immutable" : "Mutable" }
+        var binding: String { self == .immutable ? "let" : "var" }
+
+        /// The body of `copy(with:)`: an immutable value is its own copy.
+        func copyBody(protocolName name: String) -> String {
+            self == .immutable ? "self" : "Immutable\(name)(self)"
+        }
+    }
 }
 
 extension ObjcValueMacro: PeerMacro {
@@ -26,45 +38,33 @@ extension ObjcValueMacro: PeerMacro {
         providingPeersOf decl: some DeclSyntaxProtocol,
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        let proto: ProtocolDeclSyntax, properties: [Property]
-        switch validate(decl) {
-        case .success(let valid):
-            (proto, properties) = valid
-        case .failure(let error):
-            context.diagnose(Diagnostic(node: attribute, message: error))
-            return []
-        }
-        let name = proto.name.text
+        let (proto, properties) = try validate(decl)
         let access = proto.modifiers
             .first { ["public", "package"].contains($0.name.text) }
             .map { "\($0.name.text) " } ?? ""
-        return [
-            makeClass(prefix: "Immutable", binding: "let", copy: "self", protocolName: name, properties: properties, access: access),
-            makeClass(prefix: "Mutable", binding: "var", copy: "Immutable\(name)(self)", protocolName: name, properties: properties, access: access),
-        ]
+        return Variant.allCases.map {
+            makeClass($0, protocolName: proto.name.text, properties: properties, access: access)
+        }
     }
 
-    /// Returns the protocol and its properties, or the reason the macro can't support the declaration.
-    static func validate(_ decl: some SyntaxProtocol) -> Result<(ProtocolDeclSyntax, [Property]), ObjcValueDiagnostic> {
-        func fail(_ message: String) -> Result<(ProtocolDeclSyntax, [Property]), ObjcValueDiagnostic> {
-            .failure(ObjcValueDiagnostic(message: message))
-        }
+    /// Returns the protocol and its properties, or throws the reason the macro can't support the declaration.
+    static func validate(_ decl: some SyntaxProtocol) throws -> (ProtocolDeclSyntax, [Property]) {
         guard let proto = decl.as(ProtocolDeclSyntax.self) else {
-            return fail("@ObjcValue can only be applied to a protocol")
+            throw ObjcValueError("@ObjcValue can only be applied to a protocol")
         }
         let name = proto.name.text
         guard proto.attributes.contains(where: { $0.as(AttributeSyntax.self)?.attributeName.trimmedDescription == "objc" }) else {
-            return fail("@ObjcValue requires an @objc protocol so Objective-C can see the generated classes")
+            throw ObjcValueError("@ObjcValue requires an @objc protocol so Objective-C can see the generated classes")
         }
         let inherited = Set(proto.inheritanceClause?.inheritedTypes.map(\.type.trimmedDescription) ?? [])
         guard inherited.isSuperset(of: ["NSCopying", "NSMutableCopying"]) else {
-            return fail("'\(name)' must inherit NSCopying and NSMutableCopying")
+            throw ObjcValueError("'\(name)' must inherit NSCopying and NSMutableCopying")
         }
         let properties = properties(of: proto)
         guard !properties.contains(where: \.isSettable) else {
-            return fail("'Immutable\(name)' cannot conform because '\(name)' requires a settable property; declare it '{ get }'")
+            throw ObjcValueError("'Immutable\(name)' cannot conform because '\(name)' requires a settable property; declare it '{ get }'")
         }
-        return .success((proto, properties))
+        return (proto, properties)
     }
 
     private static func properties(of proto: ProtocolDeclSyntax) -> [Property] {
@@ -84,15 +84,13 @@ extension ObjcValueMacro: PeerMacro {
     }
 
     private static func makeClass(
-        prefix: String,
-        binding: String,
-        copy: String,
+        _ variant: Variant,
         protocolName name: String,
         properties: [Property],
         access: String
     ) -> DeclSyntax {
-        let className = prefix + name
-        let storage = properties.map { "\(access)\(binding) \($0.name): \($0.type)" }
+        let className = variant.prefix + name
+        let storage = properties.map { "\(access)\(variant.binding) \($0.name): \($0.type)" }
         let initializer = properties.isEmpty
             ? "@objc override init() {\nsuper.init()\n}"
             : """
@@ -123,7 +121,7 @@ extension ObjcValueMacro: PeerMacro {
             self.init(\(properties.map { "\($0.name): other.\($0.name)" }.joined(separator: ", ")))
             }
             """,
-            "\(access)func copy(with zone: NSZone? = nil) -> Any {\n\(copy)\n}",
+            "\(access)func copy(with zone: NSZone? = nil) -> Any {\n\(variant.copyBody(protocolName: name))\n}",
             "\(access)func mutableCopy(with zone: NSZone? = nil) -> Any {\nMutable\(name)(self)\n}",
             "\(access)override func isEqual(_ object: Any?) -> Bool {\n\(comparison)\n}",
             "\(access)override var hash: Int {\n\(hash)\n}",
@@ -143,7 +141,7 @@ extension ObjcValueMacro: MemberMacro {
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
         // The peer role reports why an invalid declaration is rejected; leave it unchanged here.
-        guard case .success(let (proto, _)) = validate(decl) else { return [] }
+        guard let (proto, _) = try? validate(decl) else { return [] }
         let declared = Set(proto.memberBlock.members.compactMap { $0.decl.as(FunctionDeclSyntax.self)?.name.text })
         return ["copy", "mutableCopy"]
             .filter { !declared.contains($0) }
@@ -151,8 +149,8 @@ extension ObjcValueMacro: MemberMacro {
     }
 }
 
-struct ObjcValueDiagnostic: DiagnosticMessage, Error {
-    let message: String
-    var severity: DiagnosticSeverity { .error }
-    var diagnosticID: MessageID { MessageID(domain: "ObjcValue", id: "error") }
+/// A reason the macro can't expand. The compiler reports a thrown error at the `@ObjcValue` attribute.
+struct ObjcValueError: Error, CustomStringConvertible {
+    let description: String
+    init(_ description: String) { self.description = description }
 }
