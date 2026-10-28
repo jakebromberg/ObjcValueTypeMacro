@@ -12,13 +12,13 @@ final class ObjcValueExpansionTests: XCTestCase {
         assertMacroExpansion(
             """
             @ObjcValue
-            @objc public protocol Person: NSCopying, NSMutableCopying {
+            @objc public protocol Person: NSObjectProtocol, NSCopying, NSMutableCopying {
                 var name: String { get }
                 var age: Int { get }
             }
             """,
             expandedSource: """
-            @objc public protocol Person: NSCopying, NSMutableCopying {
+            @objc public protocol Person: NSObjectProtocol, NSCopying, NSMutableCopying {
                 var name: String { get }
                 var age: Int { get }
 
@@ -97,13 +97,13 @@ final class ObjcValueExpansionTests: XCTestCase {
         assertMacroExpansion(
             """
             @ObjcValue
-            @objc protocol Tag: NSCopying, NSMutableCopying {
+            @objc protocol Tag: NSObjectProtocol, NSCopying, NSMutableCopying {
                 func copy() -> Any
                 func mutableCopy() -> Any
             }
             """,
             expandedSource: """
-            @objc protocol Tag: NSCopying, NSMutableCopying {
+            @objc protocol Tag: NSObjectProtocol, NSCopying, NSMutableCopying {
                 func copy() -> Any
                 func mutableCopy() -> Any
             }
@@ -163,18 +163,23 @@ final class ObjcValueExpansionTests: XCTestCase {
                 "@ObjcValue can only be applied to a protocol"
             ),
             (
-                "@ObjcValue\nprotocol Person: NSCopying, NSMutableCopying {}",
-                "protocol Person: NSCopying, NSMutableCopying {}",
+                "@ObjcValue\nprotocol Person: NSObjectProtocol, NSCopying, NSMutableCopying {}",
+                "protocol Person: NSObjectProtocol, NSCopying, NSMutableCopying {}",
                 "@ObjcValue requires an @objc protocol so Objective-C can see the generated classes"
             ),
             (
-                "@ObjcValue\n@objc protocol Person: NSCopying {}",
-                "@objc protocol Person: NSCopying {}",
-                "'Person' must inherit NSCopying and NSMutableCopying"
+                "@ObjcValue\n@objc protocol Person: NSObjectProtocol, NSCopying {}",
+                "@objc protocol Person: NSObjectProtocol, NSCopying {}",
+                "'Person' must inherit NSObjectProtocol, NSCopying, and NSMutableCopying"
             ),
             (
-                "@ObjcValue\n@objc protocol Person: NSCopying, NSMutableCopying {\n    var name: String { get set }\n}",
-                "@objc protocol Person: NSCopying, NSMutableCopying {\n    var name: String { get set }\n}",
+                "@ObjcValue\n@objc protocol Person: NSCopying, NSMutableCopying {}",
+                "@objc protocol Person: NSCopying, NSMutableCopying {}",
+                "'Person' must inherit NSObjectProtocol, NSCopying, and NSMutableCopying"
+            ),
+            (
+                "@ObjcValue\n@objc protocol Person: NSObjectProtocol, NSCopying, NSMutableCopying {\n    var name: String { get set }\n}",
+                "@objc protocol Person: NSObjectProtocol, NSCopying, NSMutableCopying {\n    var name: String { get set }\n}",
                 "'ImmutablePerson' cannot conform because 'Person' requires a settable property; declare it '{ get }'"
             ),
         ]

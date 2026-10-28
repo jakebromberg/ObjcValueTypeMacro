@@ -1,11 +1,11 @@
 /// Generates `Immutable<Name>` and `Mutable<Name>` Objective-C classes that conform to the attached protocol.
 ///
-/// The protocol must be `@objc`, inherit `NSCopying` and `NSMutableCopying`, and declare only `{ get }`
-/// properties whose types are `Hashable`:
+/// The protocol must be `@objc`, inherit `NSObjectProtocol`, `NSCopying` and `NSMutableCopying`, and declare
+/// only `{ get }` properties whose types are `Hashable`:
 ///
 /// ```swift
 /// @ObjcValue
-/// @objc public protocol Person: NSCopying, NSMutableCopying {
+/// @objc public protocol Person: NSObjectProtocol, NSCopying, NSMutableCopying {
 ///     var name: String { get }
 ///     var age: Int { get }
 /// }

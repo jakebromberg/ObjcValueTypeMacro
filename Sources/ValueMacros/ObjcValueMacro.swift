@@ -3,7 +3,8 @@ import SwiftSyntaxMacros
 
 /// Generates `Immutable<Name>` and `Mutable<Name>` Objective-C classes from an `@objc` protocol.
 ///
-/// The protocol must inherit `NSCopying` and `NSMutableCopying`, and declare only `{ get }` properties.
+/// The protocol must inherit `NSObjectProtocol`, `NSCopying` and `NSMutableCopying`, and declare only
+/// `{ get }` properties. `NSObjectProtocol` lets Objective-C call `-isEqual:` and `-hash` on an `id<Name>`.
 /// Both classes are `final` `NSObject` subclasses registered with the Objective-C runtime under their
 /// unmangled Swift names. `copy` returns an immutable value (the receiver itself when it is already
 /// immutable), `mutableCopy` returns a new mutable value, and `isEqual(_:)`/`hash` compare property
@@ -57,8 +58,8 @@ extension ObjcValueMacro: PeerMacro {
             throw ObjcValueError("@ObjcValue requires an @objc protocol so Objective-C can see the generated classes")
         }
         let inherited = Set(proto.inheritanceClause?.inheritedTypes.map(\.type.trimmedDescription) ?? [])
-        guard inherited.isSuperset(of: ["NSCopying", "NSMutableCopying"]) else {
-            throw ObjcValueError("'\(name)' must inherit NSCopying and NSMutableCopying")
+        guard inherited.isSuperset(of: ["NSObjectProtocol", "NSCopying", "NSMutableCopying"]) else {
+            throw ObjcValueError("'\(name)' must inherit NSObjectProtocol, NSCopying, and NSMutableCopying")
         }
         let properties = properties(of: proto)
         guard !properties.contains(where: \.isSettable) else {
