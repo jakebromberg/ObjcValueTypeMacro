@@ -4,7 +4,7 @@ import ObjcValue
 import XCTest
 
 @ObjcValue
-@objc public protocol Track: NSCopying, NSMutableCopying {
+@objc public protocol Track: NSObjectProtocol, NSCopying, NSMutableCopying {
     var title: String { get }
     var plays: Int { get }
 }
