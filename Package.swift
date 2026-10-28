@@ -19,6 +19,10 @@ let package = Package(
             name: "Examples",
             targets: ["Examples"]
         ),
+        .executable(
+            name: "ObjCExamples",
+            targets: ["ObjCExamples"]
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-syntax.git", from: "510.0.0")
@@ -35,7 +39,9 @@ let package = Package(
             name: "ObjcValue",
             dependencies: ["ValueMacros"]
         ),
-        .executableTarget(name: "Examples", dependencies: ["ObjcValue"]),
+        .target(name: "ExampleModels", dependencies: ["ObjcValue"]),
+        .executableTarget(name: "Examples", dependencies: ["ExampleModels"]),
+        .executableTarget(name: "ObjCExamples", dependencies: ["ExampleModels"]),
         .testTarget(
             name: "ObjcValueTests",
             dependencies: [
@@ -44,5 +50,6 @@ let package = Package(
             ]
         ),
         .testTarget(name: "ObjcValueRuntimeTests", dependencies: ["ObjcValue"]),
+        .testTarget(name: "ObjCInteropTests", dependencies: ["ExampleModels"]),
     ]
 )

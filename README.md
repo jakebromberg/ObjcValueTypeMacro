@@ -9,7 +9,7 @@ import Foundation
 import ObjcValue
 
 @ObjcValue
-@objc public protocol Person: NSCopying, NSMutableCopying {
+@objc public protocol Person: NSObjectProtocol, NSCopying, NSMutableCopying {
     var name: String { get }
     var age: Int { get }
 }
@@ -40,7 +40,7 @@ MutablePerson *edit = [person mutableCopy];
 The macro reports an error when the protocol:
 
 - isn't `@objc`,
-- doesn't inherit both `NSCopying` and `NSMutableCopying`, or
+- doesn't inherit `NSObjectProtocol`, `NSCopying` and `NSMutableCopying` (`NSObjectProtocol` is what lets Objective-C call `-isEqual:` and `-hash` on an `id<Person>`), or
 - declares a `{ get set }` property.
 
 Property types must be Objective-C representable (because the protocol is `@objc`) and `Hashable` (for `isEqual(_:)` and `hash`).
@@ -56,7 +56,14 @@ Property types must be Objective-C representable (because the protocol is `@objc
 ```sh
 swift build
 swift test
-swift run Examples
+swift run Examples       # Swift
+swift run ObjCExamples   # Objective-C
 ```
 
-`ObjcValueTests` checks the macro's expansions and diagnostics. `ObjcValueRuntimeTests` checks the generated classes through the Objective-C runtime: class names, read-only property attributes, protocol methods, copying, and equality.
+Both examples use the `User` protocol in `Sources/ExampleModels`. Objective-C code in the package imports it with `@import ExampleModels;`, which reads the header Swift generates for that target.
+
+| Test target | Language | Checks |
+|---|---|---|
+| `ObjcValueTests` | Swift | the macro's expansions and diagnostics |
+| `ObjcValueRuntimeTests` | Swift | the generated classes through the Objective-C runtime: class names, read-only property attributes, protocol methods, copying, and equality |
+| `ObjCInteropTests` | Objective-C | that Objective-C code compiles against the generated header and gets the same copying and equality behavior |

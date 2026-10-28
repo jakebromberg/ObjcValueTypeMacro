@@ -1,18 +1,11 @@
-import Foundation
-import ObjcValue
-
-@ObjcValue
-@objc protocol Person: NSCopying, NSMutableCopying {
-    var name: String { get }
-    var age: Int { get }
-}
+import ExampleModels
 
 @main
 enum Example {
     static func main() {
-        let draft = MutablePerson(name: "Ada", age: 36)
-        draft.age += 1
-        let person = draft.copy() as! ImmutablePerson
-        print("\(person.name) is \(person.age); equal to draft: \(person.isEqual(draft))")
+        let draft = MutableUser(name: "Ada", email: "ada@example.com")
+        draft.email = "ada@lovelace.dev"
+        let user = draft.copy() as! ImmutableUser
+        print("\(user.name) <\(user.email)>; equal to draft: \(user.isEqual(draft))")
     }
 }
